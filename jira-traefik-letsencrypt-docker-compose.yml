@@ -23,7 +23,7 @@ volumes:
 services:
   postgres:
     # Image tag (replace with yours)
-    image: postgres:11.11
+    image: postgres:14
     volumes:
       - jira-postgres:/var/lib/postgresql/data
     environment:
@@ -43,7 +43,7 @@ services:
 
   jira:
     # Image tag (replace with yours)
-    image: atlassian/jira-software:8.16-jdk11
+    image: atlassian/jira-software:9.2.0-EAP02-ubuntu-jdk11
     volumes:
       - jira-data:/var/atlassian/application-data/jira
     environment:
@@ -82,7 +82,7 @@ services:
 
   traefik:
     # Image tag (replace with yours)
-    image: traefik:2.4
+    image: traefik:2.8
     command:
       - "--log.level=WARN"
       - "--accesslog=true"
@@ -139,7 +139,7 @@ services:
 
   backups:
     # Image tag (replace with yours)
-    image: postgres:11.11
+    image: postgres:14
     # Database backups prune interval (replace with yours). Default is 7 days.
     # find /srv/jira-postgres/backups -type f -mtime +7 | xargs rm -f
 
