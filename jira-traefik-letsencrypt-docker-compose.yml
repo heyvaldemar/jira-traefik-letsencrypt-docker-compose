@@ -1,16 +1,66 @@
-# Jira with Let's Encrypt in a Docker Compose
+# Jira with Let's Encrypt Using Docker Compose
+
+# The complete installation guide is available on my https://www.heyvaldemar.com/install-jira-using-docker-compose/
+
+# Change variables in the `.env` to meet your requirements.
+# Note that the `.env` file should be in the same directory as `jira-traefik-letsencrypt-docker-compose.yml`.
+
+# Create networks for your services before deploying the configuration using the commands:
+# `docker network create traefik-network`
+# `docker network create jira-network`
+
+# Deploy Jira using Docker Compose:
+# `docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d`
+
+# Backups
+# The `backups` container in the configuration is responsible for the following:
+# 1. **Database Backup**: Creates compressed backups of the PostgreSQL database using pg_dump.
+# Customizable backup path, filename pattern, and schedule through variables like `POSTGRES_BACKUPS_PATH`, `POSTGRES_BACKUP_NAME`, and `BACKUP_INTERVAL`.
+# 2. **Application Data Backup**: Compresses and stores backups of the application data on the same schedule. Controlled via variables such as `DATA_BACKUPS_PATH`, `DATA_BACKUP_NAME`, and `BACKUP_INTERVAL`.
+# 3. **Backup Pruning**: Periodically removes backups exceeding a specified age to manage storage.
+# Customizable pruning schedule and age threshold with `POSTGRES_BACKUP_PRUNE_DAYS` and `DATA_BACKUP_PRUNE_DAYS`.
+# By utilizing this container, consistent and automated backups of the essential components of your instance are ensured.
+# Moreover, efficient management of backup storage and tailored backup routines can be achieved through easy and flexible configuration using environment variables.
+
+# # jira-restore-database.sh Description
+# This script facilitates the restoration of a database backup.
+# 1. **Identify Containers**: It first identifies the service and backups containers by name, finding the appropriate container IDs.
+# 2. **List Backups**: Displays all available database backups located at the specified backup path.
+# 3. **Select Backup**: Prompts the user to copy and paste the desired backup name from the list to restore the database.
+# 4. **Stop Service**: Temporarily stops the service to ensure data consistency during restoration.
+# 5. **Restore Database**: Executes a sequence of commands to drop the current database, create a new one, and restore it from the selected compressed backup file.
+# 6. **Start Service**: Restarts the service after the restoration is completed.
+# To make the `jira-restore-database.shh` script executable, run the following command:
+# `chmod +x jira-restore-database.sh`
+# Usage of this script ensures a controlled and guided process to restore the database from an existing backup.
+
+# # jira-restore-application-data.sh Description
+# This script is designed to restore the application data.
+# 1. **Identify Containers**: Similarly to the database restore script, it identifies the service and backups containers by name.
+# 2. **List Application Data Backups**: Displays all available application data backups at the specified backup path.
+# 3. **Select Backup**: Asks the user to copy and paste the desired backup name for application data restoration.
+# 4. **Stop Service**: Stops the service to prevent any conflicts during the restore process.
+# 5. **Restore Application Data**: Removes the current application data and then extracts the selected backup to the appropriate application data path.
+# 6. **Start Service**: Restarts the service after the application data has been successfully restored.
+# To make the `jira-restore-application-data.sh` script executable, run the following command:
+# `chmod +x jira-restore-application-data.sh`
+# By utilizing this script, you can efficiently restore application data from an existing backup while ensuring proper coordination with the running service.
 
 # Author
-# hey, I’m Vladimir Mikhalev, but my friends call me Valdemar.
+# I’m Vladimir Mikhalev, the Docker Captain, but my friends can call me Valdemar.
+# https://www.docker.com/captains/vladimir-mikhalev/
 
 # My website with detailed IT guides: https://www.heyvaldemar.com/
 # Follow me on YouTube: https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1
 # Follow me on Twitter: https://twitter.com/heyValdemar
 # Follow me on Instagram: https://www.instagram.com/heyvaldemar/
+# Follow me on Threads: https://www.threads.net/@heyvaldemar
+# Follow me on Mastodon: https://hachyderm.io/@heyValdemar
+# Follow me on Bluesky: https://bsky.app/profile/heyvaldemar.bsky.social
 # Follow me on Facebook: https://www.facebook.com/heyValdemarFB/
 # Follow me on TikTok: https://www.tiktok.com/@heyvaldemar
-# Follow me on [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
-# Follow me on [GitHub](https://github.com/heyvaldemar)
+# Follow me on LinkedIn: https://www.linkedin.com/in/heyvaldemar/
+# Follow me on GitHub: https://github.com/heyvaldemar
 
 # Communication
 # Chat with IT pros on Discord: https://discord.gg/AJQGCCBcqf
@@ -23,38 +73,33 @@
 # Support on Ko-fi: https://ko-fi.com/heyValdemar
 # Support on PayPal: https://www.paypal.com/paypalme/heyValdemarCOM
 
-# Install Docker Engine and Docker Compose by following my guide: https://www.heyvaldemar.com/install-docker-engine-and-docker-compose-on-ubuntu-server/
-
-# Run jira-restore-application-data.sh to restore application data if needed.
-# Run jira-restore-database.sh to restore database if needed.
-
-# Deploy Jira server with a Docker Compose using the command:
-# docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d
-
-# Detailed installation guide can be found on my website: https://www.heyvaldemar.com/install-jira-with-docker-compose/
+networks:
+  jira-network:
+    external: true
+  traefik-network:
+    external: true
 
 volumes:
   jira-data:
   jira-postgres:
+  jira-postgres-backup:
   jira-data-backups:
-  jira-postgres-backups:
+  jira-database-backups:
   traefik-certificates:
 
 services:
   postgres:
-    # Image tag (replace with yours)
-    image: postgres:14
+    image: ${JIRA_POSTGRES_IMAGE_TAG}
     volumes:
       - jira-postgres:/var/lib/postgresql/data
     environment:
-      # Database name (replace with yours)
-      POSTGRES_DB: jiradb
-      # Database user (replace with yours)
-      POSTGRES_USER: jiradbuser
-      # Database password (replace with yours)
-      POSTGRES_PASSWORD: zkhuneTBFxpgvUrtDaKs9XG
+      POSTGRES_DB: ${JIRA_DB_NAME}
+      POSTGRES_USER: ${JIRA_DB_USER}
+      POSTGRES_PASSWORD: ${JIRA_DB_PASSWORD}
+    networks:
+      - jira-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
+      test: [ "CMD", "pg_isready", "-q", "-d", "${JIRA_DB_NAME}", "-U", "${JIRA_DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -62,19 +107,24 @@ services:
     restart: unless-stopped
 
   jira:
-    # Image tag (replace with yours)
-    image: atlassian/jira-software:9.2.0-EAP02-ubuntu-jdk11
+    image: ${JIRA_IMAGE_TAG}
     volumes:
-      - jira-data:/var/atlassian/application-data/jira
+      - jira-data:${DATA_PATH}
     environment:
-      # Application memory (replace with yours)
-      JVM_MINIMUM_MEMORY: 8G
-      JVM_MAXIMUM_MEMORY: 8G
-      # Jira URL (replace with yours)
-      ATL_PROXY_NAME: jira.heyvaldemar.net
-      ATL_PROXY_PORT: 443
-      ATL_TOMCAT_SCHEME: https
+      JVM_MINIMUM_MEMORY: ${JIRA_JVM_MINIMUM_MEMORY}
+      JVM_MAXIMUM_MEMORY: ${JIRA_JVM_MAXIMUM_MEMORY}
+      ATL_PROXY_NAME: ${JIRA_HOSTNAME}
       ATL_TOMCAT_SECURE: 'true'
+      ATL_TOMCAT_SCHEME: https
+      ATL_PROXY_PORT: 443
+      ATL_DB_TYPE: postgres72
+      ATL_DB_DRIVER: org.postgresql.Driver
+      ATL_JDBC_USER: ${JIRA_DB_USER}
+      ATL_JDBC_PASSWORD: ${JIRA_DB_PASSWORD}
+      ATL_JDBC_URL: jdbc:postgresql://postgres:5432/${JIRA_DB_NAME}
+    networks:
+      - jira-network
+      - traefik-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 10s
@@ -83,8 +133,7 @@ services:
       start_period: 90s
     labels:
       - "traefik.enable=true"
-      # Jira URL (replace with yours)
-      - "traefik.http.routers.jira.rule=Host(`jira.heyvaldemar.net`)"
+      - "traefik.http.routers.jira.rule=Host(`${JIRA_HOSTNAME}`)"
       - "traefik.http.routers.jira.service=jira"
       - "traefik.http.routers.jira.entrypoints=websecure"
       - "traefik.http.services.jira.loadbalancer.server.port=8080"
@@ -93,6 +142,7 @@ services:
       - "traefik.http.services.jira.loadbalancer.passhostheader=true"
       - "traefik.http.routers.jira.middlewares=compresstraefik"
       - "traefik.http.middlewares.compresstraefik.compress=true"
+      - "traefik.docker.network=traefik-network"
     restart: unless-stopped
     depends_on:
       postgres:
@@ -101,10 +151,9 @@ services:
         condition: service_healthy
 
   traefik:
-    # Image tag (replace with yours)
-    image: traefik:2.8
+    image: ${TRAEFIK_IMAGE_TAG}
     command:
-      - "--log.level=WARN"
+      - "--log.level=${TRAEFIK_LOG_LEVEL}"
       - "--accesslog=true"
       - "--api.dashboard=true"
       - "--api.insecure=true"
@@ -117,8 +166,7 @@ services:
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.exposedByDefault=false"
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      # Email for Let's Encrypt (replace with yours)
-      - "--certificatesresolvers.letsencrypt.acme.email=callvaldemar@gmail.com"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
@@ -127,6 +175,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - traefik-certificates:/etc/traefik/acme
+    networks:
+      - traefik-network
     ports:
       - "80:80"
       - "443:443"
@@ -138,8 +188,7 @@ services:
       start_period: 5s
     labels:
       - "traefik.enable=true"
-      # Traefik URL (replace with yours)
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.jira.heyvaldemar.net`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
@@ -147,10 +196,7 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
       - "traefik.http.routers.dashboard.middlewares=authtraefik"
-      # Basic Authentication for Traefik Dashboard
-      # Username: traefikadmin (replace with yours)
-      # Passwords must be encoded using MD5, SHA1, or BCrypt https://hostingcanada.org/htpasswd-generator/
-      - "traefik.http.middlewares.authtraefik.basicauth.users=traefikadmin:$$2y$$10$$sMzJfirKC75x/hVpiINeZOiSm.Jkity9cn4KwNkRvO7hSQVFc5FLO"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
       - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
@@ -158,43 +204,36 @@ services:
     restart: unless-stopped
 
   backups:
-    # Image tag (replace with yours)
-    image: postgres:14
-    # Database backups prune interval (replace with yours). Default is 7 days.
-    # find /srv/jira-postgres/backups -type f -mtime +7 | xargs rm -f
-
-    # Application data backups prune interval (replace with yours). Default is 7 days.
-    # find /srv/jira-application-data/backups -type f -mtime +7 | xargs rm -f
-
-    # Jira backups interval (replace with yours). Default is 1 day.
-    # sleep 24h
-
-    # Run jira-restore-application-data.sh to restore application data if needed.
-    # Run jira-restore-database.sh to restore database if needed.
-    command: sh -c 'sleep 30m
-             && while true; do
-             PGPASSWORD="$$(echo $$POSTGRES_PASSWORD)"
-             pg_dump
-             -h postgres
-             -p 5432
-             -d jiradb
-             -U jiradbuser | gzip > /srv/jira-postgres/backups/jira-postgres-backup-$$(date "+%Y-%m-%d_%H-%M").gz
-             && tar -zcpf /srv/jira-application-data/backups/jira-application-data-backup-$$(date "+%Y-%m-%d_%H-%M").tar.gz /var/atlassian/application-data/jira
-             && find /srv/jira-postgres/backups -type f -mtime +7 | xargs rm -f
-             && find /srv/jira-application-data/backups -type f -mtime +7 | xargs rm -f;
-             sleep 24h; done'
+    image: ${JIRA_POSTGRES_IMAGE_TAG}
+    command: >-
+      sh -c 'sleep $BACKUP_INIT_SLEEP &&
+      while true; do
+        pg_dump -h postgres -p 5432 -d $JIRA_DB_NAME -U $JIRA_DB_USER | gzip > $POSTGRES_BACKUPS_PATH/$POSTGRES_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").gz &&
+        tar -zcpf $DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").tar.gz $DATA_PATH &&
+        find $POSTGRES_BACKUPS_PATH -type f -mtime +$POSTGRES_BACKUP_PRUNE_DAYS | xargs rm -f &&
+        find $DATA_BACKUPS_PATH -type f -mtime +$DATA_BACKUP_PRUNE_DAYS | xargs rm -f;
+        sleep $BACKUP_INTERVAL; done'
     volumes:
-      - jira-data:/var/atlassian/application-data/jira
-      # Application data backups location
-      - jira-data-backups:/srv/jira-application-data/backups
-      # Database backups location
-      - jira-postgres-backups:/srv/jira-postgres/backups
+      - jira-postgres-backup:/var/lib/postgresql/data
+      - jira-data:${DATA_PATH}
+      - jira-data-backups:${DATA_BACKUPS_PATH}
+      - jira-database-backups:${POSTGRES_BACKUPS_PATH}
     environment:
-      # Database password (replace with yours)
-      POSTGRES_PASSWORD: zkhuneTBFxpgvUrtDaKs9XG
+      JIRA_DB_NAME: ${JIRA_DB_NAME}
+      JIRA_DB_USER: ${JIRA_DB_USER}
+      PGPASSWORD: ${JIRA_DB_PASSWORD}
+      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
+      POSTGRES_BACKUP_PRUNE_DAYS: ${POSTGRES_BACKUP_PRUNE_DAYS}
+      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS}
+      POSTGRES_BACKUPS_PATH: ${POSTGRES_BACKUPS_PATH}
+      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH}
+      DATA_PATH: ${DATA_PATH}
+      POSTGRES_BACKUP_NAME: ${POSTGRES_BACKUP_NAME}
+      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME}
+    networks:
+      - jira-network
     restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_healthy
-      jira:
         condition: service_healthy
