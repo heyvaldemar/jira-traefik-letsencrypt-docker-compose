@@ -236,7 +236,7 @@ jobs:
             code="$(curl -sk -o /dev/null -w "%{http_code}" "https://$APP_HOSTNAME/status")"
             health="$(docker inspect -f "{{.State.Health.Status}}" "$(docker ps -qf name=jira-jira)" 2>/dev/null || echo n/a)"
             echo "poll: http=$code health=$health body=${body:0:80}"
-            echo "$body" | grep -qE "FIRST_SETUP|RUNNING|STARTING" && break
+            echo "$body" | grep -qE "FIRST_SETUP|FIRST_RUN|RUNNING|STARTING" && break
             sleep 15
           done'
           curl -sk "https://$APP_HOSTNAME/status"

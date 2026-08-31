@@ -63,10 +63,13 @@ services:
       - jira-network
       - traefik-network
     healthcheck:
-      # wget, not curl: the atlassian/jira-software 11.x image ships no
-      # curl, and a permanently failing healthcheck removes the container
-      # from Traefik load balancing (404s for every request).
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/"]
+      # Port check only, no HTTP client: with ATL_TOMCAT_SECURE/SCHEME set
+      # for the reverse proxy, Jira answers plain-HTTP requests with a
+      # redirect to https://${ATL_PROXY_NAME}/, which is not resolvable
+      # from inside the container — so wget/curl based checks fail forever,
+      # and a permanently unhealthy container is removed from Traefik load
+      # balancing (404s for every request).
+      test: ["CMD-SHELL", "timeout 10 bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
