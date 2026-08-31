@@ -63,7 +63,10 @@ services:
       - jira-network
       - traefik-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      # wget, not curl: the atlassian/jira-software 11.x image ships no
+      # curl, and a permanently failing healthcheck removes the container
+      # from Traefik load balancing (404s for every request).
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/"]
       interval: 10s
       timeout: 5s
       retries: 3
