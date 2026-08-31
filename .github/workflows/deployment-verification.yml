@@ -229,9 +229,14 @@ jobs:
         run: |
           # shellcheck disable=SC2016
           # Jira answers /status with HTTP 503 + a JSON state until setup
-          # completes, so poll without -f and match the body.
-          timeout 15m bash -c 'while ! curl -sk "https://$APP_HOSTNAME/status" | grep -qE "FIRST_SETUP|RUNNING|STARTING"; do
-            echo "Still starting..."
+          # completes, so poll without -f and match the body. Each poll
+          # logs the HTTP code and container health for diagnosability.
+          timeout 15m bash -c 'while true; do
+            body="$(curl -sk "https://$APP_HOSTNAME/status")"
+            code="$(curl -sk -o /dev/null -w "%{http_code}" "https://$APP_HOSTNAME/status")"
+            health="$(docker inspect -f "{{.State.Health.Status}}" "$(docker ps -qf name=jira-jira)" 2>/dev/null || echo n/a)"
+            echo "poll: http=$code health=$health body=${body:0:80}"
+            echo "$body" | grep -qE "FIRST_SETUP|RUNNING|STARTING" && break
             sleep 15
           done'
           curl -sk "https://$APP_HOSTNAME/status"
