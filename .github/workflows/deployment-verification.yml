@@ -228,11 +228,13 @@ jobs:
         # proves the shipped configuration produces a working instance.
         run: |
           # shellcheck disable=SC2016
-          timeout 15m bash -c 'while ! curl -fsk "https://$APP_HOSTNAME/status" | grep -qE "FIRST_SETUP|RUNNING"; do
+          # Jira answers /status with HTTP 503 + a JSON state until setup
+          # completes, so poll without -f and match the body.
+          timeout 15m bash -c 'while ! curl -sk "https://$APP_HOSTNAME/status" | grep -qE "FIRST_SETUP|RUNNING|STARTING"; do
             echo "Still starting..."
             sleep 15
           done'
-          curl -fsk "https://$APP_HOSTNAME/status"
+          curl -sk "https://$APP_HOSTNAME/status"
           echo
 
       - name: Wait for the Traefik dashboard to be ready
