@@ -1,3 +1,15 @@
+# Image pins live HERE, as interpolation defaults, so `git pull` (or
+# re-downloading this file) delivers the exact version combination this
+# repository has tested — no .env editing required. Setting the matching
+# variable in .env overrides the default for anyone who wants to pin
+# differently; .env itself carries only secrets and deliberate overrides.
+# CI (Trivy scans, check-pin-freshness, the ephemeral test .env) reads
+# the pins from these lines — this block is the single source of truth.
+x-images:
+  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:3.7@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf}
+  postgres: &postgres-image ${JIRA_POSTGRES_IMAGE_TAG:-postgres:15@sha256:9b1d34adbce1dd07ee6e94b4a2cf698884b89bd44a6c9c12f5da8f3acbfe4957}
+  jira: &jira-image ${JIRA_IMAGE_TAG:-atlassian/jira-software:11.3.10@sha256:23536987fc06637e3e516231ac59dfdeacda4f5fb22820a91eca6139714b01bd}
+
 networks:
   jira-network:
     external: true
@@ -14,17 +26,17 @@ volumes:
 
 services:
   postgres:
-    image: ${JIRA_POSTGRES_IMAGE_TAG}
+    image: *postgres-image
     volumes:
       - jira-postgres:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: ${JIRA_DB_NAME}
-      POSTGRES_USER: ${JIRA_DB_USER}
-      POSTGRES_PASSWORD: ${JIRA_DB_PASSWORD}
+      POSTGRES_DB: ${JIRA_DB_NAME:-jiradb}
+      POSTGRES_USER: ${JIRA_DB_USER:-jiradbuser}
+      POSTGRES_PASSWORD: ${JIRA_DB_PASSWORD:?set in .env - see .env.example for generation command}
     networks:
       - jira-network
     healthcheck:
-      test: [ "CMD", "pg_isready", "-q", "-d", "${JIRA_DB_NAME}", "-U", "${JIRA_DB_USER}" ]
+      test: [ "CMD", "pg_isready", "-q", "-d", "${JIRA_DB_NAME:-jiradb}", "-U", "${JIRA_DB_USER:-jiradbuser}" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -32,21 +44,21 @@ services:
     restart: unless-stopped
 
   jira:
-    image: ${JIRA_IMAGE_TAG}
+    image: *jira-image
     volumes:
-      - jira-data:${DATA_PATH}
+      - jira-data:${DATA_PATH:-/var/atlassian/application-data/jira}
     environment:
-      JVM_MINIMUM_MEMORY: ${JIRA_JVM_MINIMUM_MEMORY}
-      JVM_MAXIMUM_MEMORY: ${JIRA_JVM_MAXIMUM_MEMORY}
-      ATL_PROXY_NAME: ${JIRA_HOSTNAME}
+      JVM_MINIMUM_MEMORY: ${JIRA_JVM_MINIMUM_MEMORY:-4G}
+      JVM_MAXIMUM_MEMORY: ${JIRA_JVM_MAXIMUM_MEMORY:-8G}
+      ATL_PROXY_NAME: ${JIRA_HOSTNAME:?set in .env - see .env.example}
       ATL_TOMCAT_SECURE: 'true'
       ATL_TOMCAT_SCHEME: https
       ATL_PROXY_PORT: 443
       ATL_DB_TYPE: postgres72
       ATL_DB_DRIVER: org.postgresql.Driver
-      ATL_JDBC_USER: ${JIRA_DB_USER}
+      ATL_JDBC_USER: ${JIRA_DB_USER:-jiradbuser}
       ATL_JDBC_PASSWORD: ${JIRA_DB_PASSWORD}
-      ATL_JDBC_URL: jdbc:postgresql://postgres:5432/${JIRA_DB_NAME}
+      ATL_JDBC_URL: jdbc:postgresql://postgres:5432/${JIRA_DB_NAME:-jiradb}
     networks:
       - jira-network
       - traefik-network
@@ -87,10 +99,10 @@ services:
         condition: service_healthy
 
   traefik:
-    image: ${TRAEFIK_IMAGE_TAG}
+    image: *traefik-image
     command:
       # Set the log level (DEBUG, INFO, WARN, ERROR)
-      - "--log.level=${TRAEFIK_LOG_LEVEL}"
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-WARN}"
       # Enable the built-in API and web-based dashboard
       - "--api.dashboard=true"
       # Enable the /ping endpoint so we can health-check Traefik
@@ -115,7 +127,7 @@ services:
       # Use ACME (Let's Encrypt) to generate/renew certificates via TLS challenge
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
       # The email address used by Let's Encrypt for renewal notices
-      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:?set in .env - see .env.example}"
       # The file where ACME certificates are stored inside the container
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
       # Enable Prometheus metrics
@@ -144,14 +156,14 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # A router to expose the Traefik dashboard
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME:?set in .env - see .env.example}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.service=api@internal"
       # Basic Authentication for the Traefik dashboard
       - "traefik.http.routers.dashboard.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH:?set in .env - see .env.example for htpasswd generation}"
       # Specify the internal server port to the dashboard service
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
       # Pass the original Host header to the backend
@@ -159,33 +171,33 @@ services:
     restart: unless-stopped
 
   backups:
-    image: ${JIRA_POSTGRES_IMAGE_TAG}
+    image: *postgres-image
     command: >-
-      sh -c 'sleep $BACKUP_INIT_SLEEP &&
+      sh -c 'sleep $$BACKUP_INIT_SLEEP &&
       while true; do
-        pg_dump -h postgres -p 5432 -d $JIRA_DB_NAME -U $JIRA_DB_USER | gzip > $POSTGRES_BACKUPS_PATH/$POSTGRES_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").gz &&
-        tar -zcpf $DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").tar.gz $DATA_PATH &&
-        find $POSTGRES_BACKUPS_PATH -type f -mtime +$POSTGRES_BACKUP_PRUNE_DAYS | xargs rm -f &&
-        find $DATA_BACKUPS_PATH -type f -mtime +$DATA_BACKUP_PRUNE_DAYS | xargs rm -f;
-        sleep $BACKUP_INTERVAL; done'
+        pg_dump -h postgres -p 5432 -d $$JIRA_DB_NAME -U $$JIRA_DB_USER | gzip > $$POSTGRES_BACKUPS_PATH/$$POSTGRES_BACKUP_NAME-$$(date "+%Y-%m-%d_%H-%M").gz &&
+        tar -zcpf $$DATA_BACKUPS_PATH/$$DATA_BACKUP_NAME-$$(date "+%Y-%m-%d_%H-%M").tar.gz $$DATA_PATH &&
+        find $$POSTGRES_BACKUPS_PATH -type f -mtime +$$POSTGRES_BACKUP_PRUNE_DAYS | xargs rm -f &&
+        find $$DATA_BACKUPS_PATH -type f -mtime +$$DATA_BACKUP_PRUNE_DAYS | xargs rm -f;
+        sleep $$BACKUP_INTERVAL; done'
     volumes:
       - jira-postgres-backup:/var/lib/postgresql/data
-      - jira-data:${DATA_PATH}
-      - jira-data-backups:${DATA_BACKUPS_PATH}
-      - jira-database-backups:${POSTGRES_BACKUPS_PATH}
+      - jira-data:${DATA_PATH:-/var/atlassian/application-data/jira}
+      - jira-data-backups:${DATA_BACKUPS_PATH:-/srv/jira-application-data/backups}
+      - jira-database-backups:${POSTGRES_BACKUPS_PATH:-/srv/jira-postgres/backups}
     environment:
-      JIRA_DB_NAME: ${JIRA_DB_NAME}
-      JIRA_DB_USER: ${JIRA_DB_USER}
+      JIRA_DB_NAME: ${JIRA_DB_NAME:-jiradb}
+      JIRA_DB_USER: ${JIRA_DB_USER:-jiradbuser}
       PGPASSWORD: ${JIRA_DB_PASSWORD}
-      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP}
-      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
-      POSTGRES_BACKUP_PRUNE_DAYS: ${POSTGRES_BACKUP_PRUNE_DAYS}
-      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS}
-      POSTGRES_BACKUPS_PATH: ${POSTGRES_BACKUPS_PATH}
-      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH}
-      DATA_PATH: ${DATA_PATH}
-      POSTGRES_BACKUP_NAME: ${POSTGRES_BACKUP_NAME}
-      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME}
+      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP:-30m}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-24h}
+      POSTGRES_BACKUP_PRUNE_DAYS: ${POSTGRES_BACKUP_PRUNE_DAYS:-7}
+      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS:-7}
+      POSTGRES_BACKUPS_PATH: ${POSTGRES_BACKUPS_PATH:-/srv/jira-postgres/backups}
+      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH:-/srv/jira-application-data/backups}
+      DATA_PATH: ${DATA_PATH:-/var/atlassian/application-data/jira}
+      POSTGRES_BACKUP_NAME: ${POSTGRES_BACKUP_NAME:-jira-postgres-backup}
+      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME:-jira-application-data-backup}
     networks:
       - jira-network
     restart: unless-stopped

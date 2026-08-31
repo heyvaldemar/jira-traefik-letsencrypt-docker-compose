@@ -16,7 +16,6 @@ JIRA_CONTAINER=$(docker ps -aqf "name=jira-jira")
 JIRA_BACKUPS_CONTAINER=$(docker ps -aqf "name=jira-backups")
 JIRA_DB_NAME="jiradb"
 JIRA_DB_USER="jiradbuser"
-POSTGRES_PASSWORD=$(docker exec $JIRA_BACKUPS_CONTAINER printenv PGPASSWORD)
 BACKUP_PATH="/srv/jira-postgres/backups/"
 
 echo "--> All available database backups:"
@@ -30,7 +29,7 @@ echo "--> Copy and paste the backup name from the list above to restore database
 --> Example: jira-postgres-backup-YYYY-MM-DD_hh-mm.gz"
 echo -n "--> "
 
-read SELECTED_DATABASE_BACKUP
+read -r SELECTED_DATABASE_BACKUP
 
 echo "--> $SELECTED_DATABASE_BACKUP was selected"
 

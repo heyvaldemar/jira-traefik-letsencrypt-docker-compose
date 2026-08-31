@@ -1,160 +1,172 @@
-# Jira with Let's Encrypt Using Docker Compose
+# Jira + Traefik + Let's Encrypt — Docker Compose
 
-[![Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/00-deployment-verification.yml/badge.svg)](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions)
+[![Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The badge displayed on my repository indicates the status of the deployment verification workflow as executed on the latest commit to the main branch.
+## Contents
 
-**Passing**: This means the most recent commit has successfully passed all deployment checks, confirming that the Docker Compose setup functions correctly as designed.
+- [Why this stack?](#why-this-stack)
+- [Prerequisites](#prerequisites)
+- [Getting started](#getting-started)
+- [Features](#features)
+- [Supply chain trust](#supply-chain-trust)
+- [Production checklist](#production-checklist)
+- [Backups](#backups)
+- [Testing](#testing)
+- [Security Notes](#security-notes)
+- [About the maintainer](#about-the-maintainer)
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-jira-using-docker-compose/).
+This repository deploys **Jira Software (Data Center)** behind **Traefik** with automatic **Let's Encrypt TLS**, backed by **PostgreSQL**, with scheduled **backups** (database + application data) and companion **restore scripts**. One `docker compose up` away from issue tracking at `https://your-domain`.
 
-❗ Change variables in the `.env` to meet your requirements.
+📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-jira-using-docker-compose/](https://www.heyvaldemar.com/install-jira-using-docker-compose/).
 
-💡 Note that the `.env` file should be in the same directory as `jira-traefik-letsencrypt-docker-compose.yml`.
+⚖️ **Licensing note:** Jira Data Center requires an Atlassian license (trials available). This template handles the infrastructure; the license is between you and Atlassian.
 
-Create networks for your services before deploying the configuration using the commands:
+## Why this stack?
 
-`docker network create traefik-network`
+| Need | This stack | Manual install | Kubernetes | Other compose examples |
+|------|-----------|----------------|------------|------------------------|
+| Ready to deploy in <15 min | ✅ | ❌ | ✅ if K8s is already running | Often |
+| TLS via Let's Encrypt, auto-renewed | ✅ Traefik ACME built-in | Manual certbot | Via cert-manager | Rare |
+| External PostgreSQL wired with healthchecks | ✅ | Manual | ✅ | Varies |
+| Scheduled DB + data backups + pruning | ✅ | Manual cron | External | Rare |
+| Restore scripts included | ✅ two scripts | Manual | Manual | Rare |
+| Upstream images pinned by `sha256` digest | ✅ | N/A | Depends | Rare |
+| Weekly pin-freshness check in CI | ✅ | N/A | Depends | Rare |
+| CI-verified deployment on every push | ✅ /status answers | N/A | Varies | Rare |
+| Credentials via env (never committed) | ✅ | N/A | K8s Secrets | Often committed plaintext |
 
-`docker network create jira-network`
+Four moving parts (Traefik + Jira + Postgres + backups). No Kubernetes prerequisites, no manual certificate management.
 
-Deploy Jira using Docker Compose:
+## Prerequisites
 
-`docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d`
+- **A Linux server** with a public IP and **RAM for the JVM** — defaults are 4 GB min / 8 GB max heap; the host wants 8–12 GB total.
+- **Docker Engine 24+ and Docker Compose 2.20+.**
+- **A domain you control,** with two `A` records pointing at your server's public IP — one for Jira, one for the Traefik dashboard. DNS must propagate before deploy.
+- **Ports 80 and 443 open** on the server's firewall.
+- **Disk for attachments, indexes, and backups.**
+
+## Getting started
+
+```bash
+# 1. Clone
+git clone https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose
+cd jira-traefik-letsencrypt-docker-compose
+
+# 2. Create the two Docker networks the stack expects
+docker network create traefik-network
+docker network create jira-network
+
+# 3. Copy the environment template and fill in required values
+cp .env.example .env
+$EDITOR .env
+# ^ Required: JIRA_DB_PASSWORD, JIRA_HOSTNAME, JIRA_URL,
+#   TRAEFIK_HOSTNAME, TRAEFIK_ACME_EMAIL, TRAEFIK_BASIC_AUTH.
+
+# 4. Deploy
+docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d
+```
+
+First boot takes a few minutes (JVM + index initialization). Then `https://${JIRA_HOSTNAME}` serves the setup wizard — choose "I'll set it up myself", point it at the bundled database (host `postgres`, database `jiradb`, user `jiradbuser`, your `JIRA_DB_PASSWORD`), and follow the license step.
+
+### What success looks like
+
+```bash
+# Services healthy:
+docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira ps
+
+# Jira status endpoint (FIRST_SETUP before the wizard, RUNNING after):
+curl -fsS "https://${JIRA_HOSTNAME}/status"
+# Expected: {"state":"FIRST_SETUP"}
+
+# Traefik issued a certificate:
+docker compose -p jira logs traefik | grep -i "adding certificate"
+
+# First backup lands after BACKUP_INIT_SLEEP (default 30m):
+docker compose -p jira logs backups | tail -3
+```
+
+### Common first-deploy issues
+
+- **Cert issuance fails.** DNS hasn't propagated or port 80 isn't reachable from the internet.
+- **`docker compose up` fails with `set in .env`.** A required variable is empty; the error names it.
+- **`network jira-network not found`.** Step 2 was skipped.
+- **OOM-killed container.** Lower `JIRA_JVM_MINIMUM_MEMORY`/`JIRA_JVM_MAXIMUM_MEMORY` in `.env` to fit your host, or add RAM.
+
+### Apply `.env` or compose-file changes
+
+```bash
+docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d --force-recreate
+```
+
+## Features
+
+- **Jira Software Data Center** 11.3 line with an external **PostgreSQL 15** (not the evaluation H2), healthchecked and backupable.
+- **Traefik v3** with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
+- **Basic-auth protected Traefik dashboard** on a separate hostname.
+- **Tunable JVM heap** via `JIRA_JVM_MINIMUM_MEMORY` / `JIRA_JVM_MAXIMUM_MEMORY`.
+- **Scheduled backups** of the database (`pg_dump | gzip`) and application data (`tar.gz`) with retention pruning, plus restore scripts for both.
+- **Credentials required at deploy time** — compose fails fast if `.env` is incomplete.
+
+## Supply chain trust
+
+This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
+
+- [`traefik`](https://hub.docker.com/_/traefik) — reverse proxy, Docker Hub official image
+- [`atlassian/jira-software`](https://hub.docker.com/r/atlassian/jira-software) — Jira upstream
+- [`postgres`](https://hub.docker.com/_/postgres) — PostgreSQL, Docker Hub official image
+
+All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block — `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides the default deliberately.
+
+The weekly `check-pin-freshness` CI job re-resolves each pinned tag against its registry, compares the pinned Jira version against the highest release tag on Docker Hub (Atlassian publishes no GitHub releases), and checks the Traefik minor against the latest upstream release. CI runs on every push, pull request, and every Monday at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
+
+## Production checklist
+
+- [ ] **Strong secrets.** `JIRA_DB_PASSWORD` at 24+ random characters; regenerate the Traefik dashboard BCrypt hash per deployment.
+- [ ] **Size the JVM to your instance** — Atlassian's sizing guides beat guesswork; defaults here suit a small team.
+- [ ] **Host-mount the backup volumes** for disaster recovery.
+- [ ] **Verify Let's Encrypt cert issuance** in the Traefik logs on first start.
+- [ ] **Follow Atlassian's upgrade path for existing instances.** Moving from the previously pinned 9.11 to 11.x goes through the 10.3 LTS stop — back up, step through, verify. Fresh deployments start on 11.3 directly.
+- [ ] **Know the restore procedure.** Run both restore scripts against a test environment before you need them.
 
 ## Backups
 
-The `backups` container in the configuration is responsible for the following:
+The `backups` container performs a dump → archive → prune → sleep loop: `pg_dump | gzip` of the Jira database, `tar.gz` of the application data (attachments, indexes), pruning by retention windows, then sleeping `BACKUP_INTERVAL` (default 24h). All knobs configured via `.env` with compose-level defaults.
 
-1. **Database Backup**: Creates compressed backups of the PostgreSQL database using pg_dump.
-Customizable backup path, filename pattern, and schedule through variables like `POSTGRES_BACKUPS_PATH`, `POSTGRES_BACKUP_NAME`, and `BACKUP_INTERVAL`.
+**Verify backups are running:**
 
-2. **Application Data Backup**: Compresses and stores backups of the application data on the same schedule. Controlled via variables such as `DATA_BACKUPS_PATH`, `DATA_BACKUP_NAME`, and `BACKUP_INTERVAL`.
+```bash
+docker compose -p jira logs backups | tail -5
+```
 
-3. **Backup Pruning**: Periodically removes backups exceeding a specified age to manage storage. Customizable pruning schedule and age threshold with `POSTGRES_BACKUP_PRUNE_DAYS` and `DATA_BACKUP_PRUNE_DAYS`.
+**Restore** with the interactive scripts (`chmod +x *.sh` once): `./jira-restore-database.sh`, then `./jira-restore-application-data.sh`.
 
-By utilizing this container, consistent and automated backups of the essential components of your instance are ensured. Moreover, efficient management of backup storage and tailored backup routines can be achieved through easy and flexible configuration using environment variables.
+## Testing
 
-## jira-restore-database.sh Description
+The [Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC:
 
-This script facilitates the restoration of a database backup:
+1. **Lint** — shellcheck on both restore scripts, actionlint on the workflow.
+2. **Trivy scans** of all three pinned images (CRITICAL/HIGH, SARIF to the Security tab).
+3. **Pin freshness** (weekly/manual) — digest drift, Jira Docker Hub tag lag, Traefik release lag.
+4. **Deploy-and-test** — boots the full stack with ephemeral credentials and requires `/status` to report `FIRST_SETUP` through Traefik — the shipped configuration must produce a serving Jira, not just started containers.
 
-1. **Identify Containers**: It first identifies the service and backups containers by name, finding the appropriate container IDs.
+A green run is the authoritative proof that the template deploys end-to-end.
 
-2. **List Backups**: Displays all available database backups located at the specified backup path.
+## Security Notes
 
-3. **Select Backup**: Prompts the user to copy and paste the desired backup name from the list to restore the database.
+- Credentials are read from `.env` at deploy time; `.env` is gitignored and compose fails fast on missing required variables.
+- **Pre-rotation advisory.** Releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password. Rotate `JIRA_DB_PASSWORD` if your deployment reused it.
+- The database listens only on the internal network.
+- Upstream image digests are pinned; the weekly freshness job flags drift loudly.
 
-4. **Stop Service**: Temporarily stops the service to ensure data consistency during restoration.
+---
 
-5. **Restore Database**: Executes a sequence of commands to drop the current database, create a new one, and restore it from the selected compressed backup file.
-
-6. **Start Service**: Restarts the service after the restoration is completed.
-
-To make the `jira-restore-database.shh` script executable, run the following command:
-
-`chmod +x jira-restore-database.sh`
-
-Usage of this script ensures a controlled and guided process to restore the database from an existing backup.
-
-## jira-restore-application-data.sh Description
-
-This script is designed to restore the application data:
-
-1. **Identify Containers**: Similarly to the database restore script, it identifies the service and backups containers by name.
-
-2. **List Application Data Backups**: Displays all available application data backups at the specified backup path.
-
-3. **Select Backup**: Asks the user to copy and paste the desired backup name for application data restoration.
-
-4. **Stop Service**: Stops the service to prevent any conflicts during the restore process.
-
-5. **Restore Application Data**: Removes the current application data and then extracts the selected backup to the appropriate application data path.
-
-6. **Start Service**: Restarts the service after the application data has been successfully restored.
-
-To make the `jira-restore-application-data.sh` script executable, run the following command:
-
-`chmod +x jira-restore-application-data.sh`
-
-By utilizing this script, you can efficiently restore application data from an existing backup while ensuring proper coordination with the running service.
-
-## Author
-
-hey everyone,
-
-💾 I’ve been in the IT game for over 20 years, cutting my teeth with some big names like [IBM](https://www.linkedin.com/in/heyvaldemar/), [Thales](https://www.linkedin.com/in/heyvaldemar/), and [Amazon](https://www.linkedin.com/in/heyvaldemar/). These days, I wear the hat of a DevOps Consultant and Team Lead, but what really gets me going is Docker and container technology - I’m kind of obsessed!
-
-💛 I have my own IT [blog](https://www.heyvaldemar.com/), where I’ve built a [community](https://discord.gg/AJQGCCBcqf) of DevOps enthusiasts who share my love for all things Docker, containers, and IT technologies in general. And to make sure everyone can jump on this awesome DevOps train, I write super detailed guides (seriously, they’re foolproof!) that help even newbies deploy and manage complex IT solutions.
-
-🚀 My dream is to empower every single person in the DevOps community to squeeze every last drop of potential out of Docker and container tech.
-
-🐳 As a [Docker Captain](https://www.docker.com/captains/vladimir-mikhalev/), I’m stoked to share my knowledge, experiences, and a good dose of passion for the tech. My aim is to encourage learning, innovation, and growth, and to inspire the next generation of IT whizz-kids to push Docker and container tech to its limits.
-
-Let’s do this together!
-
-## My 2D Portfolio
-
-🕹️ Click into [sre.gg](https://www.sre.gg/) — my virtual space is a 2D pixel-art portfolio inviting you to interact with elements that encapsulate the milestones of my DevOps career.
-
-## My Courses
-
-🎓 Dive into my [comprehensive IT courses](https://www.heyvaldemar.com/courses/) designed for enthusiasts and professionals alike. Whether you're looking to master Docker, conquer Kubernetes, or advance your DevOps skills, my courses provide a structured pathway to enhancing your technical prowess.
-
-🔑 [Each course](https://www.udemy.com/user/heyvaldemar/) is built from the ground up with real-world scenarios in mind, ensuring that you gain practical knowledge and hands-on experience. From beginners to seasoned professionals, there's something here for everyone to elevate their IT skills.
-
-## My Services
-
-💼 Take a look at my [service catalog](https://www.heyvaldemar.com/services/) and find out how we can make your technological life better. Whether it's increasing the efficiency of your IT infrastructure, advancing your career, or expanding your technological horizons — I'm here to help you achieve your goals. From DevOps transformations to building gaming computers — let's make your technology unparalleled!
-
-## Patreon Exclusives
-
-🏆 Join my [Patreon](https://www.patreon.com/heyvaldemar) and dive deep into the world of Docker and DevOps with exclusive content tailored for IT enthusiasts and professionals. As your experienced guide, I offer a range of membership tiers designed to suit everyone from newbies to IT experts.
-
-## My Recommendations
-
-📕 Check out my collection of [essential DevOps books](https://kit.co/heyvaldemar/essential-devops-books)\
-🖥️ Check out my [studio streaming and recording kit](https://kit.co/heyvaldemar/my-studio-streaming-and-recording-kit)\
-📡 Check out my [streaming starter kit](https://kit.co/heyvaldemar/streaming-starter-kit)
-
-## Follow Me
-
-🎬 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1)\
-🐦 [X / Twitter](https://twitter.com/heyvaldemar)\
-🎨 [Instagram](https://www.instagram.com/heyvaldemar/)\
-🐘 [Mastodon](https://mastodon.social/@heyvaldemar)\
-🧵 [Threads](https://www.threads.net/@heyvaldemar)\
-🎸 [Facebook](https://www.facebook.com/heyvaldemarFB/)\
-🧊 [Bluesky](https://bsky.app/profile/heyvaldemar.bsky.social)\
-🎥 [TikTok](https://www.tiktok.com/@heyvaldemar)\
-💻 [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)\
-📣 [daily.dev Squad](https://app.daily.dev/squads/devopscompass)\
-🧩 [LeetCode](https://leetcode.com/u/heyvaldemar/)\
-🐈 [GitHub](https://github.com/heyvaldemar)
-
-## Community of IT Experts
-
-👾 [Discord](https://discord.gg/AJQGCCBcqf)
-
-## Refill My Coffee Supplies
-
-💖 [PayPal](https://www.paypal.com/paypalme/heyvaldemarCOM)\
-🏆 [Patreon](https://www.patreon.com/heyvaldemar)\
-💎 [GitHub](https://github.com/sponsors/heyvaldemar)\
-🥤 [BuyMeaCoffee](https://www.buymeacoffee.com/heyvaldemar)\
-🍪 [Ko-fi](https://ko-fi.com/heyvaldemar)
-
-🌟 **Bitcoin (BTC):** bc1q2fq0k2lvdythdrj4ep20metjwnjuf7wccpckxc\
-🔹 **Ethereum (ETH):** 0x76C936F9366Fad39769CA5285b0Af1d975adacB8\
-🪙 **Binance Coin (BNB):** bnb1xnn6gg63lr2dgufngfr0lkq39kz8qltjt2v2g6\
-💠 **Litecoin (LTC):** LMGrhx8Jsx73h1pWY9FE8GB46nBytjvz8g
+## About the maintainer
 
 <div align="center">
 
-### Show some 💜 by starring some of the [repositories](https://github.com/heyValdemar?tab=repositories)!
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
 
-![octocat](https://user-images.githubusercontent.com/10498744/210113490-e2fad07f-4488-4da8-a656-b9abbdd8cb26.gif)
+[YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 
 </div>
-
-![footer](https://user-images.githubusercontent.com/10498744/210157572-1fca0242-8af2-46a6-bfa3-666ffd40ebde.svg)
