@@ -143,6 +143,10 @@ docker compose -p jira logs backups | tail -5
 
 **Restore** with the interactive scripts (`chmod +x *.sh` once): `./jira-restore-database.sh`, then `./jira-restore-application-data.sh`.
 
+## Resource limits
+
+Every service carries memory and CPU limits plus reservations as compose-level defaults — the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
+
 ## Testing
 
 The [Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC:
