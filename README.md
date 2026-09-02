@@ -118,7 +118,7 @@ This repository is a **deployment template**, not a custom Docker image. It orch
 
 All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block — `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides the default deliberately.
 
-The weekly `check-pin-freshness` CI job re-resolves each pinned tag against its registry, compares the pinned Jira version against the highest release tag on Docker Hub (Atlassian publishes no GitHub releases), and checks the Traefik minor against the latest upstream release. CI runs on every push, pull request, and every Monday at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
+The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry, compares the pinned Jira version against the highest release tag on Docker Hub (Atlassian publishes no GitHub releases), and checks the Traefik minor against the latest upstream release. CI runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
 
 ## Production checklist
 
@@ -149,11 +149,11 @@ Every service carries memory and CPU limits plus reservations as compose-level d
 
 ## Testing
 
-The [Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC:
+The [Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC:
 
 1. **Lint** — shellcheck on both restore scripts, actionlint on the workflow.
 2. **Trivy scans** of all three pinned images (CRITICAL/HIGH, SARIF to the Security tab).
-3. **Pin freshness** (weekly/manual) — digest drift, Jira Docker Hub tag lag, Traefik release lag.
+3. **Pin freshness** (daily/manual) — digest drift, Jira Docker Hub tag lag, Traefik release lag.
 4. **Deploy-and-test** — boots the full stack with ephemeral credentials and requires `/status` to report `FIRST_SETUP` through Traefik — the shipped configuration must produce a serving Jira, not just started containers.
 
 A green run is the authoritative proof that the template deploys end-to-end and that its backups restore.
@@ -174,7 +174,7 @@ It stops the database container briefly to prove failure detection — run it on
 - Credentials are read from `.env` at deploy time; `.env` is gitignored and compose fails fast on missing required variables.
 - **Pre-rotation advisory.** Releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password. Rotate `JIRA_DB_PASSWORD` if your deployment reused it.
 - The database listens only on the internal network.
-- Upstream image digests are pinned; the weekly freshness job flags drift loudly.
+- Upstream image digests are pinned; the daily freshness job flags drift loudly.
 
 ---
 
