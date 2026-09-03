@@ -27,6 +27,7 @@ _(no unreleased changes yet)_
 
 ### Changed
 
+- `atlassian/jira-software` 11.3.10 to 11.3.11.
 - `atlassian/jira-software:11.3.10` re-pinned to the digest upstream now publishes for that tag.
 
 ## [1.3.0] - 2026-09-02
