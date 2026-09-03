@@ -140,7 +140,7 @@ jobs:
         # Atlassian publishes releases as Docker Hub tags (no GitHub
         # releases), so the check compares against the highest semver tag.
         run: |
-          pin="$(grep -oE '\$\{JIRA_IMAGE_TAG:-[^}]+\}' jira-traefik-letsencrypt-docker-compose.yml | head -1 | sed -E 's/^\$\{JIRA_IMAGE_TAG:-//; s/\}$//')"
+          pin="$(grep -m1 -oE '\$\{JIRA_IMAGE_TAG:-.*' jira-traefik-letsencrypt-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z_]+:-([^{}]*)\}/\1/' -e 'ta')"
           ref="${pin%%@*}"
           pinned_version="${ref##*:}"
           tok="$(curl -fsSL --retry 3 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:atlassian/jira-software:pull' | jq -r .token)"
@@ -157,7 +157,7 @@ jobs:
 
       - name: Compare pinned Traefik minor against the latest release
         run: |
-          pin="$(grep -oE '\$\{TRAEFIK_IMAGE_TAG:-[^}]+\}' jira-traefik-letsencrypt-docker-compose.yml | head -1 | sed -E 's/^\$\{TRAEFIK_IMAGE_TAG:-//; s/\}$//')"
+          pin="$(grep -m1 -oE '\$\{TRAEFIK_IMAGE_TAG:-.*' jira-traefik-letsencrypt-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z_]+:-([^{}]*)\}/\1/' -e 'ta')"
           ref="${pin%%@*}"
           pinned_minor="${ref##*:}"
           latest="$(curl -fsSL --retry 3 -H "Authorization: Bearer $GH_API_TOKEN" https://api.github.com/repos/traefik/traefik/releases/latest | jq -r .tag_name)"
