@@ -1,4 +1,4 @@
-# Jira + Traefik + Let's Encrypt — Docker Compose
+# Jira + Traefik + Let's Encrypt on Docker Compose
 
 [![Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -40,9 +40,9 @@ Four moving parts (Traefik + Jira + Postgres + backups). No Kubernetes prerequis
 
 ## Prerequisites
 
-- **A Linux server** with a public IP and **RAM for the JVM** — defaults are 4 GB min / 8 GB max heap; the host wants 8–12 GB total.
+- **A Linux server** with a public IP and **RAM for the JVM**: defaults are 4 GB min / 8 GB max heap; the host wants 8–12 GB total.
 - **Docker Engine 24+ and Docker Compose 2.20+.**
-- **A domain you control,** with two `A` records pointing at your server's public IP — one for Jira, one for the Traefik dashboard. DNS must propagate before deploy.
+- **A domain you control,** with two `A` records pointing at your server's public IP: one for Jira, one for the Traefik dashboard. DNS must propagate before deploy.
 - **Ports 80 and 443 open** on the server's firewall.
 - **Disk for attachments, indexes, and backups.**
 
@@ -67,7 +67,7 @@ $EDITOR .env
 docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d
 ```
 
-First boot takes a few minutes (JVM + index initialization). Then `https://${JIRA_HOSTNAME}` serves the setup wizard — choose "I'll set it up myself", point it at the bundled database (host `postgres`, database `jiradb`, user `jiradbuser`, your `JIRA_DB_PASSWORD`), and follow the license step.
+First boot takes a few minutes (JVM + index initialization). Then `https://${JIRA_HOSTNAME}` serves the setup wizard: choose "I'll set it up myself", point it at the bundled database (host `postgres`, database `jiradb`, user `jiradbuser`, your `JIRA_DB_PASSWORD`), and follow the license step.
 
 ### What success looks like
 
@@ -106,34 +106,34 @@ docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d --fo
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
 - **Tunable JVM heap** via `JIRA_JVM_MINIMUM_MEMORY` / `JIRA_JVM_MAXIMUM_MEMORY`.
 - **Scheduled backups** of the database (`pg_dump | gzip`) and application data (`tar.gz`) with retention pruning, plus restore scripts for both.
-- **Credentials required at deploy time** — compose fails fast if `.env` is incomplete.
+- **Credentials required at deploy time**: compose fails fast if `.env` is incomplete.
 
 ## Supply chain trust
 
 This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
 
-- [`traefik`](https://hub.docker.com/_/traefik) — reverse proxy, Docker Hub official image
-- [`atlassian/jira-software`](https://hub.docker.com/r/atlassian/jira-software) — Jira upstream
-- [`postgres`](https://hub.docker.com/_/postgres) — PostgreSQL, Docker Hub official image
+- [`traefik`](https://hub.docker.com/_/traefik): reverse proxy, Docker Hub official image
+- [`atlassian/jira-software`](https://hub.docker.com/r/atlassian/jira-software): Jira upstream
+- [`postgres`](https://hub.docker.com/_/postgres): PostgreSQL, Docker Hub official image
 
-All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block — `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides the default deliberately.
+All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block: `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides the default deliberately.
 
 The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry, compares the pinned Jira version against the highest release tag on Docker Hub (Atlassian publishes no GitHub releases), and checks the Traefik minor against the latest upstream release. CI runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
 
 ## Production checklist
 
 - [ ] **Strong secrets.** `JIRA_DB_PASSWORD` at 24+ random characters; regenerate the Traefik dashboard BCrypt hash per deployment.
-- [ ] **Size the JVM to your instance** — Atlassian's sizing guides beat guesswork; defaults here suit a small team.
+- [ ] **Size the JVM to your instance**: Atlassian's sizing guides beat guesswork; defaults here suit a small team.
 - [ ] **Host-mount the backup volumes** for disaster recovery.
 - [ ] **Verify Let's Encrypt cert issuance** in the Traefik logs on first start.
-- [ ] **Follow Atlassian's upgrade path for existing instances.** Moving from the previously pinned 9.11 to 11.x goes through the 10.3 LTS stop — back up, step through, verify. Fresh deployments start on 11.3 directly.
+- [ ] **Follow Atlassian's upgrade path for existing instances.** Moving from the previously pinned 9.11 to 11.x goes through the 10.3 LTS stop: back up, step through, verify. Fresh deployments start on 11.3 directly.
 - [ ] **Know the restore procedure.** Run both restore scripts against a test environment before you need them.
 
 ## Backups
 
 The `backups` container performs a dump → archive → prune → sleep loop: `pg_dump | gzip` of the Jira database, `tar.gz` of the application data (attachments, indexes), pruning by retention windows, then sleeping `BACKUP_INTERVAL` (default 24h). All knobs configured via `.env` with compose-level defaults.
 
-Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED` (the same for the data archive where there is one). A failed dump is kept as `<file>.failed` for diagnosis and never overwrites a good backup — grep the log for `FAILED` from your monitoring.
+Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED` (the same for the data archive where there is one). A failed dump is kept as `<file>.failed` for diagnosis and never overwrites a good backup. Grep the log for `FAILED` from your monitoring.
 
 **Verify backups are running:**
 
@@ -145,7 +145,7 @@ docker compose -p jira logs backups | tail -5
 
 ## Resource limits
 
-Every service carries memory and CPU limits plus reservations as compose-level defaults — the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
+Every service carries memory and CPU limits plus reservations as compose-level defaults, the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
 
 ## Container hardening
 
@@ -155,23 +155,23 @@ Every service runs with `security_opt: no-new-privileges:true`, so a process can
 
 The [Deployment Verification](https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC:
 
-1. **Lint** — shellcheck on both restore scripts, actionlint on the workflow.
+1. **Lint**: shellcheck on both restore scripts, actionlint on the workflow.
 2. **Trivy scans** of all three pinned images (CRITICAL/HIGH, SARIF to the Security tab).
-3. **Pin freshness** (daily/manual) — digest drift, Jira Docker Hub tag lag, Traefik release lag.
-4. **Deploy-and-test** — boots the full stack with ephemeral credentials and requires `/status` to report `FIRST_SETUP` through Traefik — the shipped configuration must produce a serving Jira, not just started containers.
+3. **Pin freshness** (daily/manual): digest drift, Jira Docker Hub tag lag, Traefik release lag.
+4. **Deploy-and-test**: boots the full stack with ephemeral credentials and requires `/status` to report `FIRST_SETUP` through Traefik. The shipped configuration must produce a serving Jira, not just started containers.
 
 A green run is the authoritative proof that the template deploys end-to-end and that its backups restore.
 
 ### Backup and restore, proven
 
-`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone — a backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
+`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone. A backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
 
 ```bash
 chmod +x tests/e2e-backup-restore.sh
 ./tests/e2e-backup-restore.sh
 ```
 
-It stops the database container briefly to prove failure detection — run it on a staging copy, not on production.
+It stops the database container briefly to prove failure detection. Run it on a staging copy, not on production.
 
 ## Security Notes
 
@@ -186,7 +186,7 @@ It stops the database container briefly to prove failure detection — run it on
 
 <div align="center">
 
-**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** · Docker Captain · IBM Champion · AWS Community Builder
 
 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 

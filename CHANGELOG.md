@@ -65,7 +65,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **`tests/e2e-backup-restore.sh`** — seven end-to-end scenarios against
+- **`tests/e2e-backup-restore.sh`**: seven end-to-end scenarios against
   the live stack, run by CI on every push and by you locally: the
   required-variable guard fires, a backup is produced, it is a readable
   archive with real dump content (and a readable data `tar.gz` where the
@@ -101,12 +101,12 @@ v1.2.0.
 
 - **Jira bumped 9.11 → 11.3.10** (the 9.x line is long out of support).
   ❗ Existing deployments must follow Atlassian's upgrade path (via the
-  10.3 LTS stop) — see the README. **Traefik bumped 3.2 → 3.7** (3.2's
+  10.3 LTS stop), see the README. **Traefik bumped 3.2 → 3.7** (3.2's
   Docker client cannot talk to Docker Engine 29).
 - **All three images pinned by `tag@sha256:digest`** (`postgres:15`
   digest-pinned; major unchanged so existing data dirs keep working).
 - **Credentials untracked from git.** The tracked `.env` carried a
-  generated-looking database password published on GitHub — rotate it if
+  generated-looking database password published on GitHub. Rotate it if
   reused. `.env` is now gitignored; compose fails fast on unset values.
 
 ### Changed
