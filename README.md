@@ -16,11 +16,11 @@
 - [Security Notes](#security-notes)
 - [About the maintainer](#about-the-maintainer)
 
-This repository deploys **Jira Software (Data Center)** behind **Traefik** with automatic **Let's Encrypt TLS**, backed by **PostgreSQL**, with scheduled **backups** (database + application data) and companion **restore scripts**. One `docker compose up` away from issue tracking at `https://your-domain`.
+This repository deploys Jira Software (Data Center) behind Traefik with automatic Let's Encrypt TLS, backed by PostgreSQL, with scheduled backups (database + application data) and companion restore scripts. One `docker compose up` away from issue tracking at `https://your-domain`.
 
 📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-jira-using-docker-compose/](https://www.heyvaldemar.com/install-jira-using-docker-compose/).
 
-⚖️ **Licensing note:** Jira Data Center requires an Atlassian license (trials available). This template handles the infrastructure; the license is between you and Atlassian.
+⚖️ Licensing note: Jira Data Center requires an Atlassian license (trials available). This template handles the infrastructure; the license is between you and Atlassian.
 
 ## Why this stack?
 
@@ -40,7 +40,7 @@ Four moving parts (Traefik + Jira + Postgres + backups). No Kubernetes prerequis
 
 ## Prerequisites
 
-- **A Linux server** with a public IP and **RAM for the JVM**: defaults are 4 GB min / 8 GB max heap; the host wants 8–12 GB total.
+- **A Linux server** with a public IP and RAM for the JVM: defaults are 4 GB min / 8 GB max heap; the host wants 8–12 GB total.
 - **Docker Engine 24+ and Docker Compose 2.20+.**
 - **A domain you control,** with two `A` records pointing at your server's public IP: one for Jira, one for the Traefik dashboard. DNS must propagate before deploy.
 - **Ports 80 and 443 open** on the server's firewall.
@@ -101,7 +101,7 @@ docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d --fo
 
 ## Features
 
-- **Jira Software Data Center** 11.3 line with an external **PostgreSQL 15** (not the evaluation H2), healthchecked and backupable.
+- **Jira Software Data Center** 11.3 line with an external PostgreSQL 15 (not the evaluation H2), healthchecked and backupable.
 - **Traefik v3** with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
 - **Tunable JVM heap** via `JIRA_JVM_MINIMUM_MEMORY` / `JIRA_JVM_MAXIMUM_MEMORY`.
@@ -110,7 +110,7 @@ docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d --fo
 
 ## Supply chain trust
 
-This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
+This repository is a deployment template, not a custom Docker image. It orchestrates three upstream images:
 
 - [`traefik`](https://hub.docker.com/_/traefik): reverse proxy, Docker Hub official image
 - [`atlassian/jira-software`](https://hub.docker.com/r/atlassian/jira-software): Jira upstream
@@ -175,7 +175,7 @@ chmod +x tests/e2e-backup-restore.sh
 
 It stops the database container briefly to prove failure detection. Run it on a staging copy, not on production.
 
-## Security Notes
+## Security notes
 
 - Credentials are read from `.env` at deploy time; `.env` is gitignored and compose fails fast on missing required variables.
 - **Pre-rotation advisory.** Releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password. Rotate `JIRA_DB_PASSWORD` if your deployment reused it.

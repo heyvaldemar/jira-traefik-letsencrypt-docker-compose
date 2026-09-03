@@ -91,7 +91,7 @@ _(no unreleased changes yet)_
   required-variable guard fires, a backup is produced, it is a readable
   archive with real dump content (and a readable data `tar.gz` where the
   stack has one), a database outage is reported as `FAILED`, **restore
-  genuinely replaces database state** (a marker row inserted after the
+ replaces database state** (a marker row inserted after the
   baseline backup is gone after restoring it), and pruning removes only
   old files.
 
@@ -122,7 +122,7 @@ v1.2.0.
 
 - **Jira bumped 9.11 → 11.3.10** (the 9.x line is long out of support).
   ❗ Existing deployments must follow Atlassian's upgrade path (via the
-  10.3 LTS stop), see the README. **Traefik bumped 3.2 → 3.7** (3.2's
+  10.3 LTS stop), see the README. Traefik bumped 3.2 → 3.7 (3.2's
   Docker client cannot talk to Docker Engine 29).
 - **All three images pinned by `tag@sha256:digest`** (`postgres:15`
   digest-pinned; major unchanged so existing data dirs keep working).
