@@ -9,6 +9,7 @@
 - [Prerequisites](#prerequisites)
 - [Getting started](#getting-started)
 - [Features](#features)
+- [Updating](#updating)
 - [Supply chain trust](#supply-chain-trust)
 - [Production checklist](#production-checklist)
 - [Backups](#backups)
@@ -107,6 +108,10 @@ docker compose -f jira-traefik-letsencrypt-docker-compose.yml -p jira up -d --fo
 - **Tunable JVM heap** via `JIRA_JVM_MINIMUM_MEMORY` / `JIRA_JVM_MAXIMUM_MEMORY`.
 - **Scheduled backups** of the database (`pg_dump | gzip`) and application data (`tar.gz`) with retention pruning, plus restore scripts for both.
 - **Credentials required at deploy time**: compose fails fast if `.env` is incomplete.
+
+## Updating
+
+`./update.sh` moves this checkout to the latest release tag — a combination this repository's CI has booted, upgraded from the previous release on the same volumes, and smoke-tested — and then runs `docker compose up -d`. It refuses to cross a major version unattended, refuses to run over local changes, and names any variable that became required since your version before anything has moved. `./update.sh --dry-run` says what would happen. Every release cut by fleet triage also carries what upstream changed, read from its release notes against this compose file.
 
 ## Supply chain trust
 
