@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.7.5] - 2026-09-19
+
 ### Security
 
 - **`postgres:15` was rebuilt upstream**; the pin moved from `sha256:9b1d34adbce1…` to `sha256:dfbbb0ad8cab…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -218,7 +222,8 @@ v1.2.0.
 
 - Shellcheck findings in both restore scripts.
 
-[Unreleased]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.4...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.5...HEAD
+[1.7.5]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.4...v1.7.5
 [1.7.4]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.3...v1.7.4
 [1.7.3]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.1...v1.7.2
