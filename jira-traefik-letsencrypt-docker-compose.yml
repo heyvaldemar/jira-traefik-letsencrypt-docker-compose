@@ -8,7 +8,7 @@
 x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:1c32e7c368204fd72812152ebdd2ac0425993df6fd982317deb02e48f2d5423c}}
   postgres: &postgres-image ${JIRA_POSTGRES_IMAGE_TAG:-postgres:${JIRA_POSTGRES_IMAGE_VERSION:-15@sha256:dfbbb0ad8cab91d41e99123664e37a9b25d0413426d4fb3154e4d668e5d35246}}
-  jira: &jira-image ${JIRA_IMAGE_TAG:-atlassian/jira-software:${JIRA_IMAGE_VERSION:-11.3.11@sha256:6e4795fa808e2d7e9ca7ed62f385b8fd9a798e29299427c8e7aa1e6625aa1e5b}}
+  jira: &jira-image ${JIRA_IMAGE_TAG:-atlassian/jira-software:${JIRA_IMAGE_VERSION:-11.3.11@sha256:4046f4a668a4dac8e91e03239374d24c7729f0dbe075898f0c0d94c7eb3a6c13}}
 
 networks:
   jira-network:
