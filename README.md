@@ -127,6 +127,23 @@ Two override levels exist per image. `<PREFIX>_IMAGE_VERSION` in `.env` swaps on
 
 The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry, compares the pinned Jira version against the highest release tag on Docker Hub (Atlassian publishes no GitHub releases), and checks the Traefik minor against the latest upstream release. CI runs on every push, pull request, and every day at 06:00 UTC. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
 
+### Verify what you deploy
+
+Every release from v1.7.8 on carries three files made on GitHub's runner with a short-lived identity and no stored key: `jira-traefik-letsencrypt-docker-compose-<tag>.tar.gz`, a `git archive` of exactly the tree the tag points at; `jira-traefik-letsencrypt-docker-compose-<tag>.tar.gz.sigstore.json`, a keyless [Sigstore](https://www.sigstore.dev/) signature over it; and `jira-traefik-letsencrypt-docker-compose-<tag>.intoto.jsonl`, [SLSA](https://slsa.dev/) build provenance from the SLSA generator. To check them with nothing from this repository trusted:
+
+```bash
+cosign verify-blob jira-traefik-letsencrypt-docker-compose-<tag>.tar.gz \
+  --bundle jira-traefik-letsencrypt-docker-compose-<tag>.tar.gz.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+slsa-verifier verify-artifact jira-traefik-letsencrypt-docker-compose-<tag>.tar.gz \
+  --provenance-path jira-traefik-letsencrypt-docker-compose-<tag>.intoto.jsonl \
+  --source-uri github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose
+```
+
+Add `--source-tag <tag>` for a release published after 24 September 2026, which is signed by the run that published it. The five releases before that date were signed by a run started by hand on `main`, so their provenance names the branch, not the tag; the archive is still the tag's tree, and the signature still belongs to this repository's workflow. The workflow that makes them is [`release-assets.yml`](.github/workflows/release-assets.yml).
+
 ## Production checklist
 
 - [ ] **Strong secrets.** `JIRA_DB_PASSWORD` at 24+ random characters; regenerate the Traefik dashboard BCrypt hash per deployment.
