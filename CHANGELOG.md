@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.8.1] - 2026-09-27
+
 ### Security
 
 - **`atlassian/jira-software:11.3.11` was rebuilt upstream**; the pin moved from `sha256:4046f4a668a4…` to `sha256:4ce9c84d0945…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -274,7 +278,8 @@ v1.2.0.
 
 - Shellcheck findings in both restore scripts.
 
-[Unreleased]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.9...v1.8.0
 [1.7.7]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.6...v1.7.7
 [1.7.6]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.7.5...v1.7.6
