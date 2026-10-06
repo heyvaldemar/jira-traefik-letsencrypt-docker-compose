@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`atlassian/jira-software:11.3.11` moved to `atlassian/jira-software:11.3.12`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
+
+### Security
+
+- **`postgres:15` was rebuilt upstream**; the pin moved from `sha256:724292da1f2e…` to `sha256:7e2070cf6ad0…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
+- **`atlassian/jira-software:11.3.11` was rebuilt upstream**; the pin moved from `sha256:17a1822143e8…` to `sha256:58acf26c7b91…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
+
 ### Fixed
 
 - **`update.sh` no longer stops without a word when a release adds a variable and no compose file requires one.** The search for `${VAR:?}` came back empty, and under `pipefail` that empty result ended the script with status 1 right after it listed the new variables.
