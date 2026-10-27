@@ -84,7 +84,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${JIRA_MEMORY_LIMIT:-2g}
+          memory: ${JIRA_MEMORY_LIMIT:-10g}
           cpus: "${JIRA_CPU_LIMIT:-2.0}"
         reservations:
           memory: ${JIRA_MEMORY_RESERVATION:-256m}
@@ -92,6 +92,8 @@ services:
     volumes:
       - jira-data:${DATA_PATH:-/var/atlassian/application-data/jira}
     environment:
+      # JIRA_MEMORY_LIMIT above holds this heap and a quarter more for what the JVM
+      # keeps outside it. Change them together.
       JVM_MINIMUM_MEMORY: ${JIRA_JVM_MINIMUM_MEMORY:-4G}
       JVM_MAXIMUM_MEMORY: ${JIRA_JVM_MAXIMUM_MEMORY:-8G}
       ATL_PROXY_NAME: ${JIRA_HOSTNAME:?set in .env - see .env.example}

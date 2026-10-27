@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Fixed
+
+- **The Jira container's memory limit could not hold its own heap.** Since 1.2.0 (2026-09-02) `JIRA_MEMORY_LIMIT` defaulted to 2g while the heap defaults to 4G minimum and 8G maximum. The kernel kills a container that passes its limit, so Jira in real use would be OOM-killed long before its heap reached the size it was given. CI did not see it: it runs a 1G to 3G heap with nobody using Jira. The default is now 10g, the 8G heap plus a quarter for what the JVM keeps outside it. If you lower the heap in `.env`, lower the limit with it; a limit you already set in `.env` is untouched.
 
 ## [1.8.13] - 2026-10-25
 

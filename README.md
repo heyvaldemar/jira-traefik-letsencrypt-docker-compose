@@ -93,7 +93,7 @@ docker compose -p jira logs backups | tail -3
 - **Cert issuance fails.** DNS hasn't propagated or port 80 isn't reachable from the internet.
 - **`docker compose up` fails with `set in .env`.** A required variable is empty; the error names it.
 - **`network jira-network not found`.** Step 2 was skipped.
-- **OOM-killed container.** Lower `JIRA_JVM_MINIMUM_MEMORY`/`JIRA_JVM_MAXIMUM_MEMORY` in `.env` to fit your host, or add RAM.
+- **OOM-killed container.** Lower `JIRA_JVM_MINIMUM_MEMORY`/`JIRA_JVM_MAXIMUM_MEMORY` in `.env` to fit your host, or add RAM, and keep `JIRA_MEMORY_LIMIT` a quarter above the maximum heap.
 
 ### Apply `.env` or compose-file changes
 
@@ -171,6 +171,8 @@ docker compose -p jira logs backups | tail -5
 ## Resource limits
 
 Every service carries memory and CPU limits plus reservations as compose-level defaults, the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
+
+A JVM's memory limit sits above its maximum heap: the kernel counts everything in the container, and a JVM keeps memory outside its heap. `JIRA_MEMORY_LIMIT` defaults to 10g, the 8G heap plus a quarter. If you lower the heap in `.env`, lower the limit with it.
 
 ## Container hardening
 
