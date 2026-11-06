@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.8.23] - 2026-11-06
+
 ### Changed
 
 - **`atlassian/jira-software:11.3.12` moved to `atlassian/jira-software:11.3.13`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
@@ -427,7 +431,8 @@ v1.2.0.
 
 - Shellcheck findings in both restore scripts.
 
-[Unreleased]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.22...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.23...HEAD
+[1.8.23]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.22...v1.8.23
 [1.8.22]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.21...v1.8.22
 [1.8.21]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.20...v1.8.21
 [1.8.20]: https://github.com/heyvaldemar/jira-traefik-letsencrypt-docker-compose/compare/v1.8.19...v1.8.20
