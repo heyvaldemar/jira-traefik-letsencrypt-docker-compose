@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **`atlassian/jira-software:11.3.14` was rebuilt upstream**; the pin moved from `sha256:1ed6415aedfd…` to `sha256:28e767c52805…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
 
 ## [1.8.32] - 2026-11-25
 
